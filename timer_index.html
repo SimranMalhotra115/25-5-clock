@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>25 + 5 Clock</title>
+  <script crossorigin src="https://unpkg.com/react@17/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }
+    body {
+      min-height: 100vh;
+      background: #1e555c;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .clock-container { width: 100%; max-width: 720px; text-align: center; }
+    .title { font-size: 2.5rem; margin-bottom: 25px; font-weight: bold; }
+    .length-controls {
+      display: flex; justify-content: center; gap: 50px; flex-wrap: wrap; margin-bottom: 30px;
+    }
+    .control-box { min-width: 220px; }
+    .label { font-size: 1.5rem; margin-bottom: 10px; }
+    .control-row {
+      display: flex; justify-content: center; align-items: center; gap: 18px; font-size: 1.8rem;
+    }
+    .control-btn {
+      cursor: pointer; user-select: none; font-size: 2rem; background: none; border: none; color: white;
+    }
+    .timer-box {
+      border: 6px solid #13353a;
+      border-radius: 40px;
+      width: 320px;
+      margin: 0 auto 25px;
+      padding: 25px 20px;
+    }
+    #timer-label { font-size: 1.8rem; margin-bottom: 15px; }
+    #time-left { font-size: 4rem; font-weight: bold; }
+    .warning { color: #ff4d4d; border-color: #ff4d4d; }
+    .main-controls { display: flex; justify-content: center; gap: 20px; }
+    .main-btn {
+      background: none; border: none; color: white; font-size: 2rem; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <audio
+    id="beep"
+    preload="auto"
+    src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"
+  ></audio>
+
+  <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+
+  <script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+function App() {
+  const [breakLength, setBreakLength] = useState(5);
+  const [sessionLength, setSessionLength] = useState(25);
+  const [timerLabel, setTimerLabel] = useState("Session");
+  const [timeLeft, setTimeLeft] = useState(1500);
+  const [isRunning, setIsRunning] = useState(false);
+
+  const intervalRef = useRef(null);
+
+  const formatTime = (time) => {
+    if (time < 0) return "00:00"; // 🔥 FIX
+    const m = Math.floor(time / 60);
+    const s = time % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
+
+  useEffect(() => {
+    if (isRunning) {
+      intervalRef.current = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else {
+      clearInterval(intervalRef.current);
+    }
+
+    return () => clearInterval(intervalRef.current);
+  }, [isRunning]);
+
+  useEffect(() => {
+    if (timeLeft === 0) {
+      const beep = document.getElementById("beep");
+      beep.currentTime = 0;
+      beep.play();
+    }
+
+    // 🔥 IMPORTANT FIX (NO NEGATIVE TIME BUG)
+    if (timeLeft < 0) {
+      if (timerLabel === "Session") {
+        setTimerLabel("Break");
+        setTimeLeft(breakLength * 60);
+      } else {
+        setTimerLabel("Session");
+        setTimeLeft(sessionLength * 60);
+      }
+    }
+  }, [timeLeft]);
+
+  const handleStartStop = () => {
+    setIsRunning((prev) => !prev);
+  };
+
+  const handleReset = () => {
+    clearInterval(intervalRef.current);
+    setBreakLength(5);
+    setSessionLength(25);
+    setTimerLabel("Session");
+    setTimeLeft(1500);
+    setIsRunning(false);
+
+    const beep = document.getElementById("beep");
+    beep.pause();
+    beep.currentTime = 0;
+  };
+
+  return (
+    <div className="clock-container">
+      <div className="title">25 + 5 Clock</div>
+
+      <div className="length-controls">
+        <div>
+          <div id="break-label">Break Length</div>
+          <button id="break-decrement" onClick={() => !isRunning && breakLength > 1 && setBreakLength(breakLength - 1)}>▼</button>
+          <span id="break-length">{breakLength}</span>
+          <button id="break-increment" onClick={() => !isRunning && breakLength < 60 && setBreakLength(breakLength + 1)}>▲</button>
+        </div>
+
+        <div>
+          <div id="session-label">Session Length</div>
+          <button id="session-decrement" onClick={() => {
+            if (!isRunning && sessionLength > 1) {
+              setSessionLength(sessionLength - 1);
+              setTimeLeft((sessionLength - 1) * 60);
+            }
+          }}>▼</button>
+          <span id="session-length">{sessionLength}</span>
+          <button id="session-increment" onClick={() => {
+            if (!isRunning && sessionLength < 60) {
+              setSessionLength(sessionLength + 1);
+              setTimeLeft((sessionLength + 1) * 60);
+            }
+          }}>▲</button>
+        </div>
+      </div>
+
+      <div>
+        <div id="timer-label">{timerLabel}</div>
+        <div id="time-left">{formatTime(timeLeft)}</div>
+      </div>
+
+      <button id="start_stop" onClick={handleStartStop}>Start/Stop</button>
+      <button id="reset" onClick={handleReset}>Reset</button>
+    </div>
+  );
+}
+
+ReactDOM.render(<App />, document.getElementById("root"));
+</script>
+</body>
+</html>
