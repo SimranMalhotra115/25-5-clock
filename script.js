@@ -3,8 +3,8 @@ const { useState, useEffect, useRef } = React;
 function App() {
   const [breakLength, setBreakLength] = useState(5);
   const [sessionLength, setSessionLength] = useState(25);
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [timerLabel, setTimerLabel] = useState("Session");
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
 
   const intervalRef = useRef(null);
@@ -12,14 +12,10 @@ function App() {
   const formatTime = (time) => {
     const minutes = Math.floor(time / 60);
     const seconds = time % 60;
-    return (
-      String(minutes).padStart(2, "0") +
-      ":" +
-      String(seconds).padStart(2, "0")
-    );
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   };
 
-  const clearTimer = () => {
+  const clearCurrentInterval = () => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -27,25 +23,29 @@ function App() {
   };
 
   useEffect(() => {
-    if (isRunning) {
+    if (isRunning && intervalRef.current === null) {
       intervalRef.current = setInterval(() => {
         setTimeLeft((prev) => prev - 1);
       }, 1000);
-    } else {
-      clearTimer();
     }
 
-    return () => clearTimer();
+    if (!isRunning) {
+      clearCurrentInterval();
+    }
+
+    return () => {};
   }, [isRunning]);
 
   useEffect(() => {
-    if (timeLeft < 0) {
+    if (timeLeft === 0) {
       const beep = document.getElementById("beep");
       if (beep) {
         beep.currentTime = 0;
         beep.play();
       }
+    }
 
+    if (timeLeft < 0) {
       if (timerLabel === "Session") {
         setTimerLabel("Break");
         setTimeLeft(breakLength * 60);
@@ -59,24 +59,24 @@ function App() {
   const handleBreakDecrement = () => {
     if (isRunning) return;
     if (breakLength > 1) {
-      setBreakLength(breakLength - 1);
+      setBreakLength((prev) => prev - 1);
     }
   };
 
   const handleBreakIncrement = () => {
     if (isRunning) return;
     if (breakLength < 60) {
-      setBreakLength(breakLength + 1);
+      setBreakLength((prev) => prev + 1);
     }
   };
 
   const handleSessionDecrement = () => {
     if (isRunning) return;
     if (sessionLength > 1) {
-      const newValue = sessionLength - 1;
-      setSessionLength(newValue);
+      const newSession = sessionLength - 1;
+      setSessionLength(newSession);
       if (timerLabel === "Session") {
-        setTimeLeft(newValue * 60);
+        setTimeLeft(newSession * 60);
       }
     }
   };
@@ -84,10 +84,10 @@ function App() {
   const handleSessionIncrement = () => {
     if (isRunning) return;
     if (sessionLength < 60) {
-      const newValue = sessionLength + 1;
-      setSessionLength(newValue);
+      const newSession = sessionLength + 1;
+      setSessionLength(newSession);
       if (timerLabel === "Session") {
-        setTimeLeft(newValue * 60);
+        setTimeLeft(newSession * 60);
       }
     }
   };
@@ -97,12 +97,12 @@ function App() {
   };
 
   const handleReset = () => {
-    clearTimer();
+    clearCurrentInterval();
+    setIsRunning(false);
     setBreakLength(5);
     setSessionLength(25);
-    setTimeLeft(25 * 60);
     setTimerLabel("Session");
-    setIsRunning(false);
+    setTimeLeft(25 * 60);
 
     const beep = document.getElementById("beep");
     if (beep) {
